@@ -5,6 +5,7 @@ use crate::utils_wm::id::IdCounter;
 pub struct Tile {
     pub tile_id: TileId,
     pub window: Window,
+    pub geometry: Rectangle<i32, Logical>
 }
 
 static TILE_ID_COUNTER: IdCounter = IdCounter::new();
@@ -26,7 +27,8 @@ impl Tile {
     pub fn new(window: Window) -> Self {
         Tile {
             tile_id: TileId::next(),
-            window
+            geometry: window.geometry().clone(),
+            window: window
         }
     }
 

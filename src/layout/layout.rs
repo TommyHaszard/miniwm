@@ -53,19 +53,12 @@ impl Layout {
         }
     }
 
-    pub fn add_window(&mut self, window: Window, target: WindowTarget) -> TileId {
+    pub fn add_window(&mut self, window: Window, target: WindowTarget) -> Vec<(Window, Rectangle<i32, Logical>)> {
         let tile = Tile::new(window);
         let tile_id = tile.tile_id.clone();
         if self.workspaces.is_empty() {
             let mut workspace = Workspace::default();
-            tracing::info!(
-                "Added Tile {:?} to workspace {:?}",
-                tile_id,
-                workspace.workspace_id
-            );
-            workspace.tiling_space.tiles.push(tile);
-            self.workspaces.push(workspace);
-            return tile_id;
+            self.current_workspace_id = Some(workspace.workspace_id.clone())
         }
 
         match target {
@@ -81,9 +74,7 @@ impl Layout {
             WindowTarget::NextTo(tile_id) => todo!(),
         };
 
-        self.retile(target);
-
-        tile_id
+        self.retile(target)
     }
 
     fn add_window_to_workspace(&mut self, tile: Tile, workspace_id: &Option<WorkspaceId>) {
@@ -96,16 +87,28 @@ impl Layout {
         }
     }
 
-    pub fn retile(&mut self, target: WindowTarget) {
+    pub fn retile(&mut self, target: WindowTarget) -> Vec<(Window, Rectangle<i32, Logical>)>{
         // based on the window target we know where we need to retile
         match target {
             WindowTarget::Auto => {
                 // get the windows in the workstation in the future and recalculate
-                
+                let workspace_id = &self.current_workspace_id.clone();
+                if let Some(id) = workspace_id {
+                    let workspace = self
+                        .workspaces
+                        .iter_mut()
+                        .find(|ws| ws.workspace_id == *id);
+
+                    if let Some(ws) = workspace {
+                        return ws.tiling_space.retile(self.working_zone.to_i32_down());
+                    }
+                }
             }
             WindowTarget::Workspace(workspace_id) => {}
             WindowTarget::NextTo(tile_id) => todo!(),
-        };
+        }
+
+        Vec::new()
     }
 
     pub fn set_output(&mut self, output: Output) {

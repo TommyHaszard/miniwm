@@ -37,9 +37,11 @@ impl XdgShellHandler for MiniWm {
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface);
-        self.layout.add_window(window.clone(), WindowTarget::Auto);
-
-        self.space.map_element(window.clone(), (0, 0), false);
+        let windows = self.layout.add_window(window.clone(), WindowTarget::Auto);
+        
+    for (window, geometry) in windows {
+        self.space.map_element(window, geometry.loc, false);
+    }
         tracing::info!("Added new window")
     }
 
