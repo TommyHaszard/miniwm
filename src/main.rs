@@ -6,6 +6,8 @@ mod backends;
 mod grabs;
 mod input;
 mod state;
+mod layout;
+mod utils_wm;
 
 use smithay::{reexports::{
         calloop::EventLoop,
@@ -37,6 +39,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (winit_backend, winit_event_loop) = WinitBackend::new(&mut state)?;
     let mut backend = Backend::Winit(winit_backend);
     backend.init(winit_event_loop, &mut event_loop)?;
+    let output = backend.get_output();
+    state.set_output(output);
 
     let mut data = CalloopData {
         state,

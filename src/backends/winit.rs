@@ -9,8 +9,7 @@ use smithay::{
     },
     output::{Mode, Output},
     reexports::{
-        calloop::{EventLoop, InsertError},
-        wayland_protocols::ext::background_effect::v1::server::ext_background_effect_surface_v1::Error,
+        calloop::{EventLoop},
     },
     utils::{Rectangle, Transform},
 };
@@ -22,7 +21,7 @@ use crate::{CalloopData, MiniWm, backends::{Backend, winit}};
  * We also setup the event sources for the calloop event loop by registrying the Winit events.
 */
 pub struct WinitBackend {
-    output: Output,
+    pub output: Output,
     backend: WinitGraphicsBackend<GlesRenderer>,
     damage_tracker: OutputDamageTracker,
 }
@@ -55,8 +54,12 @@ impl WinitBackend {
         state.space.map_output(&output, (0, 0));
 
         let damage_tracker = OutputDamageTracker::from_output(&output);
-
-        std::env::set_var("WAYLAND_DISPLAY", &state.socket_name);
+        
+        // added in 2024 edition, unsafe because how this is handled under the hood and will always
+        // be unsafe in multi threaded environments.
+        unsafe {
+            std::env::set_var("WAYLAND_DISPLAY", &state.socket_name);
+        }
 
         Ok((
             Self {

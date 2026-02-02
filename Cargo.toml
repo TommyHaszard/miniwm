@@ -11,3 +11,4 @@ smithay = { version = "0.7.0", features = [
     "wayland_frontend",
     "desktop",
 ] }
+tracing = "0.1.44"

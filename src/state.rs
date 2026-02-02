@@ -1,17 +1,18 @@
 use std::{ffi::OsString, sync::Arc};
 
 use smithay::{
-    desktop::{PopupManager, Space, Window, WindowSurfaceType},
+    desktop::{PopupManager, Space, Window, WindowSurfaceType, layer_map_for_output},
     input::{Seat, SeatState},
+    output::Output,
     reexports::{
-        calloop::{generic::Generic, EventLoop, Interest, LoopSignal, Mode, PostAction},
+        calloop::{EventLoop, Interest, LoopSignal, Mode, PostAction, generic::Generic},
         wayland_server::{
+            Display, DisplayHandle,
             backend::{ClientData, ClientId, DisconnectReason},
             protocol::wl_surface::WlSurface,
-            Display, DisplayHandle,
         },
     },
-    utils::{Logical, Point},
+    utils::{Logical, Point, Rectangle},
     wayland::{
         compositor::{CompositorClientState, CompositorState},
         output::OutputManagerState,
@@ -22,7 +23,7 @@ use smithay::{
     },
 };
 
-use crate::CalloopData;
+use crate::{CalloopData, layout::layout::Layout};
 
 pub struct MiniWm {
     pub start_time: std::time::Instant,
@@ -42,6 +43,7 @@ pub struct MiniWm {
     pub popups: PopupManager,
 
     pub seat: Seat<Self>,
+    pub layout: Layout,
 }
 
 impl MiniWm {
@@ -81,6 +83,8 @@ impl MiniWm {
         // Get the loop signal, used to stop the event loop
         let loop_signal = event_loop.get_signal();
 
+        let layout = Layout::default();
+
         Self {
             start_time,
             display_handle: dh,
@@ -97,6 +101,7 @@ impl MiniWm {
             data_device_state,
             popups,
             seat,
+            layout,
         }
     }
 
@@ -132,7 +137,10 @@ impl MiniWm {
                 |_, display, state| {
                     // Safety: we don't drop the display
                     unsafe {
-                        display.get_mut().dispatch_clients(&mut state.state).unwrap();
+                        display
+                            .get_mut()
+                            .dispatch_clients(&mut state.state)
+                            .unwrap();
                     }
                     Ok(PostAction::Continue)
                 },
@@ -142,12 +150,25 @@ impl MiniWm {
         socket_name
     }
 
-    pub fn surface_under(&self, pos: Point<f64, Logical>) -> Option<(WlSurface, Point<f64, Logical>)> {
-        self.space.element_under(pos).and_then(|(window, location)| {
-            window
-                .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
-                .map(|(s, p)| (s, (p + location).to_f64()))
-        })
+    pub fn surface_under(
+        &self,
+        pos: Point<f64, Logical>,
+    ) -> Option<(WlSurface, Point<f64, Logical>)> {
+        self.space
+            .element_under(pos)
+            .and_then(|(window, location)| {
+                window
+                    .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
+                    .map(|(s, p)| (s, (p + location).to_f64()))
+            })
+    }
+
+    pub fn set_output(&mut self, output: Output) {
+        self.layout.set_output(output)
+    }
+
+    fn compute_working_area(output: &Output) -> Rectangle<f64, Logical> {
+        layer_map_for_output(output).non_exclusive_zone().to_f64()
     }
 }
 

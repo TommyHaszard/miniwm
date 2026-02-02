@@ -1,15 +1,17 @@
 use smithay::{
     delegate_xdg_shell,
-    desktop::{find_popup_root_surface, get_popup_toplevel_coords, PopupKind, PopupManager, Space, Window},
+    desktop::{
+        PopupKind, PopupManager, Space, Window, find_popup_root_surface, get_popup_toplevel_coords,
+    },
     input::{
-        pointer::{Focus, GrabStartData as PointerGrabStartData},
         Seat,
+        pointer::{Focus, GrabStartData as PointerGrabStartData},
     },
     reexports::{
         wayland_protocols::xdg::shell::server::xdg_toplevel,
         wayland_server::{
-            protocol::{wl_seat, wl_surface::WlSurface},
             Resource,
+            protocol::{wl_seat, wl_surface::WlSurface},
         },
     },
     utils::{Rectangle, Serial},
@@ -23,8 +25,9 @@ use smithay::{
 };
 
 use crate::{
-    grabs::{MoveSurfaceGrab, ResizeSurfaceGrab},
     MiniWm,
+    grabs::{MoveSurfaceGrab, ResizeSurfaceGrab},
+    layout::WindowTarget,
 };
 
 impl XdgShellHandler for MiniWm {
@@ -34,7 +37,10 @@ impl XdgShellHandler for MiniWm {
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         let window = Window::new_wayland_window(surface);
-        self.space.map_element(window, (0, 0), false);
+        self.layout.add_window(window.clone(), WindowTarget::Auto);
+
+        self.space.map_element(window.clone(), (0, 0), false);
+        tracing::info!("Added new window")
     }
 
     fn new_popup(&mut self, surface: PopupSurface, _positioner: PositionerState) {
@@ -42,7 +48,12 @@ impl XdgShellHandler for MiniWm {
         let _ = self.popups.track_popup(PopupKind::Xdg(surface));
     }
 
-    fn reposition_request(&mut self, surface: PopupSurface, positioner: PositionerState, token: u32) {
+    fn reposition_request(
+        &mut self,
+        surface: PopupSurface,
+        positioner: PositionerState,
+        token: u32,
+    ) {
         surface.with_pending_state(|state| {
             let geometry = positioner.get_geometry();
             state.geometry = geometry;
